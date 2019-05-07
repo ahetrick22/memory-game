@@ -1,17 +1,19 @@
 import React, { Component } from 'react';
 import './App.css';
+const cardBack = require('./card-back.jpg');
 
 class App extends Component {
   
   state = {
     cats: false,
-    gridSize: 2,
+    gridSize: 4,
     imgArr: [],
     gameBoard: [],
     selectedTiles: []
   }
 
   fetchPets = async () => {
+    this.setState({ imgArr: [] });
     let url = '';
     if (this.state.cats) {
       url = "https://api.thecatapi.com/v1/images/search";
@@ -32,32 +34,35 @@ class App extends Component {
   }
 
   newGame = async () => {
+    this.setState({ selectedTiles: [] });
     await this.fetchPets();
     const gameBoardWithIds = this.state.imgArr.map((image, index) => {
       return {
         url: image,
         id: index,
-        matchingTile: index+this.state.imgArr.length
+        matchingTile: index+this.state.imgArr.length,
+        found: false
       }
     });
     const doubledBoard = gameBoardWithIds.map((tile, index) => {
       const newMatch = tile.id;
       return {...tile, 
         id: index+gameBoardWithIds.length, 
-        matchingTile: newMatch
+        matchingTile: newMatch,
+        found: false
       };
     });
     const fullBoard = this.shuffleArray(gameBoardWithIds.concat(doubledBoard));
-    this.setState( {gameBoard: fullBoard });
+    this.setState( { gameBoard: fullBoard });
   }
 
   buildCards = () => {
     return this.state.gameBoard.map((tile, index) => 
-    <span key={index} onClick = {() => this.revealCard(index)}>
-      <img className={this.state.selectedTiles.includes(index) ? 
-        "card tile back-of-card" : 
-        "card tile"} 
-        src={tile.url} 
+    <span key={index} onClick = {() => this.revealCard(tile.id)}>
+      <img className= 'card tile'
+        src={this.state.selectedTiles.includes(tile.id) || tile.found === true
+          ? tile.url 
+          : cardBack} 
         alt={this.state.cats ? "cat" : "dog"} 
       />
     </span>)
@@ -76,12 +81,43 @@ class App extends Component {
     this.newGame();
   }
 
-  revealCard = index => {
-    this.setState({ selectedTiles: [...this.state.selectedTiles, index]})
-
+  checkMatch = () => {
+    const tile1 = this.state.gameBoard.find(tile => tile.id === this.state.selectedTiles[0]);
+    const tile2 = this.state.gameBoard.find(tile => tile.id === this.state.selectedTiles[1]);
+    if (tile1.id === tile2.matchingTile) {
+      tile1.found = true;
+      tile2.found = true;
+      this.setState({ selectedTiles: [] });      
+      if (!this.state.gameBoard.find(tile => !tile.found)) {
+        alert("You've won the game");
+      }
+    } else {
+      setTimeout(() => {
+        this.setState({ selectedTiles: [] });
+      }, 3000);
+    }
   }
 
-  
+  revealCard = async (tileId) => {
+    const clickedTile = this.state.gameBoard.find(tile => tileId === tile.id)
+    const { selectedTiles } = this.state; 
+    switch (selectedTiles.length) {
+      case 0:
+      if (!clickedTile.found) {
+      await this.setState({ selectedTiles: [tileId]})
+      }
+      break;
+      case 1:
+        if (!selectedTiles.includes(tileId) && !clickedTile.found) {
+          await this.setState({ selectedTiles: [...this.state.selectedTiles, tileId]})
+          this.checkMatch();
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   render() {
     return (
       <>
@@ -93,7 +129,5 @@ class App extends Component {
     );
   }
 }
-
-
 
 export default App;
