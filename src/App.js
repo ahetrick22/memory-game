@@ -4,39 +4,63 @@ import './App.css';
 class App extends Component {
   
   state = {
-    cats: true,
-    gridSize: 16,
-    imgArr: []
+    cats: false,
+    gridSize: 2,
+    imgArr: [],
+    gameBoard: [],
+    selectedTiles: []
   }
 
-  componentDidMount = async () => {
+  fetchPets = async () => {
+    let url = '';
     if (this.state.cats) {
-      await this.fetchCats();
-      console.log(this.state.imgArr);
+      url = "https://api.thecatapi.com/v1/images/search";
+    } else {
+      url = "https://api.thedogapi.com/v1/images/search"
     }
-    const doubledArr = [...this.state.imgArr];
-    this.setState( {imgArr: this.state.imgArr.concat(doubledArr) });
-    console.log(this.state.imgArr);
-  }
-
-  fetchCats = async () => {
     for (let i = 0; i < this.state.gridSize/2; i++) {
-      await fetch("https://api.thecatapi.com/v1/images/search",{
+      await fetch(url,{
         headers: {
           "x-api-key": "693e02ea-6fbe-4cd0-a6da-ec89ba26d2e7",
           "Content-Type": "application/json"
         }, mode: "cors"
       }).then(res => res.json())
       .then(jsonRes => {
-        console.log(jsonRes[0].url)
         this.setState( {imgArr : this.state.imgArr.concat(jsonRes[0].url)} );
       }) 
     }
   }
 
+  newGame = async () => {
+    await this.fetchPets();
+    const gameBoardWithIds = this.state.imgArr.map((image, index) => {
+      return {
+        url: image,
+        id: index,
+        matchingTile: index+this.state.imgArr.length
+      }
+    });
+    const doubledBoard = gameBoardWithIds.map((tile, index) => {
+      const newMatch = tile.id;
+      return {...tile, 
+        id: index+gameBoardWithIds.length, 
+        matchingTile: newMatch
+      };
+    });
+    const fullBoard = this.shuffleArray(gameBoardWithIds.concat(doubledBoard));
+    this.setState( {gameBoard: fullBoard });
+  }
+
   buildCards = () => {
-    this.shuffleArray(this.state.imgArr);
-    return this.state.imgArr.map((imgURL, index) => <span key={index}><img className="card tile" src={imgURL} alt="cat" /></span>)
+    return this.state.gameBoard.map((tile, index) => 
+    <span key={index} onClick = {() => this.revealCard(index)}>
+      <img className={this.state.selectedTiles.includes(index) ? 
+        "card tile back-of-card" : 
+        "card tile"} 
+        src={tile.url} 
+        alt={this.state.cats ? "cat" : "dog"} 
+      />
+    </span>)
   }
 
   shuffleArray(array) {
@@ -44,12 +68,26 @@ class App extends Component {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
     }
-}
+    return array;
+  }
+
+  togglePetType = async () => {
+    await this.setState( {cats: !this.state.cats, imgArr: []} );
+    this.newGame();
+  }
+
+  revealCard = index => {
+    this.setState({ selectedTiles: [...this.state.selectedTiles, index]})
+
+  }
+
   
   render() {
     return (
       <>
       <h1>Pet Memory</h1>
+      <button onClick={this.togglePetType}>Toggle Pet</button>
+      <button onClick={this.newGame}>New Game</button>
       {this.buildCards()}
     </>
     );

@@ -4,3 +4,8 @@
   height: 200px;
   float:right; 
 }
+
+.back-of-card {
+  background-color: black;
+  opacity: 0;
+}
